@@ -66,7 +66,7 @@ def get_pdf(html, *a, **b):
         "--no-sandbox",
         "--no-pdf-header-footer",
         "--run-all-compositor-stages-before-draw",
-        "--footer-template='<style type=\"text/css\">.footer{font-size:8px;width:100%;text-align:center;color:#000;padding-left:0.65cm;}</style><div class=\"footer\"><span class=\"pageNumber\"></span> / <span class=\"totalPages\"></span></div>'",
+        "--footer-template='<style type=\"text/css\">.footer{font-size:8px;width:100%;text-align:center;color:#000;padding-left:0.65cm;} .pageNumber::before { content: \"Page \" counter(page); } .totalPages::before { content: \" of \" counter(pages); }</style><div class=\"footer\"><span class=\"pageNumber\"></span> <span class=\"totalPages\"></span></div>'",
         f"--print-to-pdf={pdf_file_path}",
         html_file_path
     ]
