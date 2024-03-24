@@ -61,11 +61,12 @@ def get_pdf(html, *a, **b):
 
     chrome_command = [
         chrome_path,
-        "--headless",
+        "--headless=new",
         "--disable-gpu",
         "--no-sandbox",
         "--no-pdf-header-footer",
         "--run-all-compositor-stages-before-draw",
+        "--footer-template='<style type=\"text/css\">.footer{font-size:8px;width:100%;text-align:center;color:#000;padding-left:0.65cm;}</style><div class=\"footer\"><span class=\"pageNumber\"></span> / <span class=\"totalPages\"></span></div>'",
         f"--print-to-pdf={pdf_file_path}",
         html_file_path
     ]
