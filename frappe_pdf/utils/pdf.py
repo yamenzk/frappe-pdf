@@ -74,8 +74,16 @@ def get_pdf(html, *a, **b):
 		]
 		subprocess.run(chrome_command, shell=False)
 		content = None
-		with open(pdf_file_path, 'rb') as f:
-			content = f.read()
-		os.remove(pdf_file_path)
+		if not os.path.exists(pdf_file_path):
+		     	print(f"PDF file not found at {pdf_file_path}")
+			result = subprocess.run(['which', 'google-chrome'], capture_output=True, text=True)
+			if result.returncode == 0:
+			    print(f"Google Chrome is installed at: {result.stdout.strip()}")
+			else:
+			    print("Google Chrome is not found in the system's PATH.")
+		else:
+			with open(pdf_file_path, 'rb') as f:
+				content = f.read()
+			os.remove(pdf_file_path)
 	
 	return content
