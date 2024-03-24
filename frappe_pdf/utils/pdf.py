@@ -63,7 +63,7 @@ def get_pdf(html, *a, **b):
 		html_file.write(html)
 		html_file.seek(0)
 		chrome_command = [
-			"google-chrome",
+			"/usr/bin/google-chrome",
 			"--headless",
 			"--disable-gpu",
 			"--no-pdf-header-footer",
