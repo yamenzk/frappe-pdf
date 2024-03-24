@@ -64,7 +64,8 @@ def get_pdf(html, *a, **b):
         "--headless",
         "--disable-gpu",
         "--no-sandbox",
-        "--print-to-pdf-no-header",
+        "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw",
         f"--print-to-pdf={pdf_file_path}",
         html_file_path
     ]
