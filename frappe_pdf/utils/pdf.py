@@ -72,9 +72,7 @@ def get_pdf(html, *a, **b):
 			html_file.name
 
 		]
-		result = subprocess.run(chrome_command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		print("STDOUT:", result.stdout)
-		print("STDERR:", result.stderr)
+		subprocess.run(chrome_command, shell=False)
 		content = None
 		with open(pdf_file_path, 'rb') as f:
 			content = f.read()
