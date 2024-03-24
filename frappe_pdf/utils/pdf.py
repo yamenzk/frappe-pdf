@@ -46,6 +46,18 @@ def get_pdf(html, *a, **b):
     pdf_file_path = f'/tmp/{frappe.generate_hash()}.pdf'
     html = scrub_urls(html)
 
+    # Append CSS for page numbering to the HTML
+    page_number_css = """
+    <style>
+    @page {
+        @bottom-center {
+            content: "Page " counter(page);
+        }
+    }
+    </style>
+    """
+    html += page_number_css  # Append the CSS to the HTML
+
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".html", delete=False) as html_file:
         html_file.write(html)
         html_file_path = html_file.name
@@ -65,8 +77,6 @@ def get_pdf(html, *a, **b):
         "--disable-gpu",
         "--no-sandbox",
         "--no-pdf-header-footer",
-        "--print-to-pdf-header-template=<div style='font-size: 10px; text-align: center;'><span class='pageNumber'></span> of <span class='totalPages'></span></div>",
-        "--print-to-pdf-footer-template=<div style='font-size: 10px; text-align: center;'><span class='pageNumber'></span> of <span class='totalPages'></span></div>",
         "--run-all-compositor-stages-before-draw",
         f"--print-to-pdf={pdf_file_path}",
         html_file_path
@@ -89,4 +99,6 @@ def get_pdf(html, *a, **b):
     os.remove(html_file_path)
 
     return content
+
+
 
