@@ -1,9 +1,9 @@
 import os
 import re
+import subprocess
 import tempfile
 import frappe
 from frappe.utils import get_url
-from weasyprint import HTML
 
 URLS_NOT_HTTP_TAG_PATTERN = re.compile(
     r'(href|src){1}([\s]*=[\s]*[\'"]?)((?!http)[^\'">]+)([\'"]?)'
@@ -13,11 +13,9 @@ URL_NOT_HTTP_NOTATION_PATTERN = re.compile(
 )
 
 def scrub_urls(html: str) -> str:
-    """Expands relative URLs in HTML content to absolute URLs."""
     return expand_relative_urls(html)
 
 def expand_relative_urls(html: str) -> str:
-    """Helper function to expand relative URLs to absolute URLs."""
     url = get_url().rstrip("/")
     
     URLS_HTTP_TAG_PATTERN = re.compile(
@@ -29,10 +27,12 @@ def expand_relative_urls(html: str) -> str:
     
     def _expand_relative_urls(match):
         to_expand = list(match.groups())
+
         if not to_expand[2].startswith(("mailto", "data:", "tel:")):
             if not to_expand[2].startswith(url):
                 to_expand[2] = "/" + to_expand[2] if not to_expand[2].startswith("/") else to_expand[2]
                 to_expand.insert(2, url)
+        
         return "".join(to_expand)
 
     html = URLS_HTTP_TAG_PATTERN.sub(_expand_relative_urls, html)
@@ -42,22 +42,48 @@ def expand_relative_urls(html: str) -> str:
 
     return html
 
-def get_pdf(html: str, *args, **kwargs):
-    """Generates a PDF from HTML content using WeasyPrint."""
-    # Generate a unique file path for the output PDF
+def get_pdf(html, *a, **b):
     pdf_file_path = f'/tmp/{frappe.generate_hash()}.pdf'
-    html = scrub_urls(html)  # Process HTML to expand URLs
+    html = scrub_urls(html)
 
-    # Use WeasyPrint to generate the PDF
-    HTML(string=html).write_pdf(target=pdf_file_path)
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".html", delete=False) as html_file:
+        html_file.write(html)
+        html_file_path = html_file.name
 
-    # Read and return the PDF file content
-    try:
-        with open(pdf_file_path, 'rb') as pdf_file:
-            content = pdf_file.read()
-        # Cleanup: Remove the PDF file after reading its content
-        os.remove(pdf_file_path)
-        return content
-    except Exception as e:
-        print(f"Error reading or cleaning up PDF file: {str(e)}")
+    chrome_path_result = subprocess.run(['which', 'google-chrome'], capture_output=True, text=True)
+    chrome_path = chrome_path_result.stdout.strip()
+
+    if not chrome_path:
+        print("Error: Google Chrome not found.")
         return None
+
+    print(f"Using Google Chrome at: {chrome_path}")
+
+    chrome_command = [
+        chrome_path,
+        "--headless",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw",
+        f"--print-to-pdf={pdf_file_path}",
+        html_file_path
+    ]
+
+    result = subprocess.run(chrome_command, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print(f"Error executing Chrome command: {result.stderr}")
+        return None
+
+    if not os.path.exists(pdf_file_path):
+        print(f"PDF file not generated at {pdf_file_path}")
+        return None
+
+    with open(pdf_file_path, 'rb') as f:
+        content = f.read()
+
+    os.remove(pdf_file_path)
+    os.remove(html_file_path)
+
+    return content
