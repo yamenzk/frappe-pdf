@@ -64,6 +64,7 @@ def get_pdf(html, *a, **b):
         "--headless",
         "--disable-gpu",
         "--no-sandbox",
+        "--no-pdf-header-footer",
         "--print-to-pdf-header-template=<div style='font-size: 10px; text-align: center;'><span class='pageNumber'></span> of <span class='totalPages'></span></div>",
         "--print-to-pdf-footer-template=<div style='font-size: 10px; text-align: center;'><span class='pageNumber'></span> of <span class='totalPages'></span></div>",
         "--run-all-compositor-stages-before-draw",
