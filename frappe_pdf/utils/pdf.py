@@ -64,13 +64,10 @@ def get_pdf(html, *a, **b):
         "--headless",
         "--disable-gpu",
         "--no-sandbox",
-        "--no-pdf-header-footer",
-        "--run-all-compositor-stages-before-draw",
-        f"--print-to-pdf={pdf_file_path}",
-        "--print-to-pdf-no-header",
-        "--print-to-pdf-no-footer",
         "--print-to-pdf-header-template=<div style='font-size: 10px; text-align: center;'><span class='pageNumber'></span> of <span class='totalPages'></span></div>",
         "--print-to-pdf-footer-template=<div style='font-size: 10px; text-align: center;'><span class='pageNumber'></span> of <span class='totalPages'></span></div>",
+        "--run-all-compositor-stages-before-draw",
+        f"--print-to-pdf={pdf_file_path}",
         html_file_path
     ]
 
