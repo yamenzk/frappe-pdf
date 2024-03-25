@@ -45,8 +45,16 @@ async def expand_relative_urls(html: str) -> str:
 
     return html
 
-async def get_pdf(html: str) -> bytes:
-    """Generates a PDF from HTML using pyppeteer with custom header and footer."""
+async def get_pdf(html: str, **kwargs) -> bytes:
+    """Generates a PDF from HTML using pyppeteer with custom header and footer.
+    
+    Args:
+        html (str): The HTML content to convert to PDF.
+        **kwargs: Arbitrary keyword arguments. Can be used to pass extra options for PDF generation.
+
+    Returns:
+        bytes: The generated PDF content.
+    """
     browser = await launch(headless=True, args=['--no-sandbox'])
     page = await browser.newPage()
 
@@ -65,6 +73,11 @@ async def get_pdf(html: str) -> bytes:
         'headerTemplate': '<span style="font-size: 10px; width: 100%; text-align: center;">My Custom Header</span>',
         'footerTemplate': '<span style="font-size: 10px; width: 100%; text-align: center;"><span class="pageNumber"></span> of <span class="totalPages"></span></span>',
     }
+
+    # Here, you could check for any relevant kwargs and adjust pdf_options accordingly.
+    # For example:
+    # if 'margin' in kwargs:
+    #     pdf_options['margin'] = kwargs['margin']
 
     await page.pdf(pdf_options)
     await browser.close()
