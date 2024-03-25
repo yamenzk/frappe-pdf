@@ -1,11 +1,10 @@
 import os
 import re
-import asyncio
+import subprocess
+import tempfile
 import frappe
-from pyppeteer import launch
 from frappe.utils import get_url
 
-# Regular expressions for expanding URLs in HTML content
 URLS_NOT_HTTP_TAG_PATTERN = re.compile(
     r'(href|src){1}([\s]*=[\s]*[\'"]?)((?!http)[^\'">]+)([\'"]?)'
 )
@@ -13,12 +12,10 @@ URL_NOT_HTTP_NOTATION_PATTERN = re.compile(
     r'(:[\s]?url)(\([\'"]?)((?!http)[^\'">]+)([\'"]?\))'
 )
 
-async def scrub_urls(html: str) -> str:
-    """Expands relative URLs in HTML content to absolute URLs."""
-    return await expand_relative_urls(html)
+def scrub_urls(html: str) -> str:
+    return expand_relative_urls(html)
 
-async def expand_relative_urls(html: str) -> str:
-    """Helper function to expand relative URLs to absolute URLs."""
+def expand_relative_urls(html: str) -> str:
     url = get_url().rstrip("/")
     
     URLS_HTTP_TAG_PATTERN = re.compile(
@@ -45,48 +42,48 @@ async def expand_relative_urls(html: str) -> str:
 
     return html
 
-async def get_pdf(html: str, **kwargs) -> bytes:
-    """Generates a PDF from HTML using pyppeteer with custom header and footer.
-    
-    Args:
-        html (str): The HTML content to convert to PDF.
-        **kwargs: Arbitrary keyword arguments. Can be used to pass extra options for PDF generation.
+def get_pdf(html, *a, **b):
+    pdf_file_path = f'/tmp/{frappe.generate_hash()}.pdf'
+    html = scrub_urls(html)
 
-    Returns:
-        bytes: The generated PDF content.
-    """
-    browser = await launch(headless=True, args=['--no-sandbox'])
-    page = await browser.newPage()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".html", delete=False) as html_file:
+        html_file.write(html)
+        html_file_path = html_file.name
 
-    # Set content with expanded URLs
-    html = await scrub_urls(html)
-    await page.setContent(html)
+    chrome_path_result = subprocess.run(['which', 'google-chrome'], capture_output=True, text=True)
+    chrome_path = chrome_path_result.stdout.strip()
 
-    # Specify PDF options, including custom header and footer
-    pdf_path = f'/tmp/{frappe.generate_hash()}.pdf'
-    pdf_options = {
-        'path': pdf_path,
-        'format': 'A4',
-        'printBackground': True,
-        'margin': {'top': '60px', 'right': '40px', 'bottom': '60px', 'left': '40px'},
-        'displayHeaderFooter': True,
-        'headerTemplate': '<span style="font-size: 10px; width: 100%; text-align: center;">My Custom Header</span>',
-        'footerTemplate': '<span style="font-size: 10px; width: 100%; text-align: center;"><span class="pageNumber"></span> of <span class="totalPages"></span></span>',
-    }
+    if not chrome_path:
+        print("Error: Google Chrome not found.")
+        return None
 
-    # Here, you could check for any relevant kwargs and adjust pdf_options accordingly.
-    # For example:
-    # if 'margin' in kwargs:
-    #     pdf_options['margin'] = kwargs['margin']
+    print(f"Using Google Chrome at: {chrome_path}")
 
-    await page.pdf(pdf_options)
-    await browser.close()
+    chrome_command = [
+        chrome_path,
+        "--headless",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw",
+        f"--print-to-pdf={pdf_file_path}",
+        html_file_path
+    ]
 
-    # Read and return PDF content
-    with open(pdf_path, 'rb') as f:
+    result = subprocess.run(chrome_command, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print(f"Error executing Chrome command: {result.stderr}")
+        return None
+
+    if not os.path.exists(pdf_file_path):
+        print(f"PDF file not generated at {pdf_file_path}")
+        return None
+
+    with open(pdf_file_path, 'rb') as f:
         content = f.read()
 
-    # Cleanup
-    os.remove(pdf_path)
+    os.remove(pdf_file_path)
+    os.remove(html_file_path)
 
     return content
