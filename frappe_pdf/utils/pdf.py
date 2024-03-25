@@ -4,6 +4,8 @@ import subprocess
 import tempfile
 import frappe
 from frappe.utils import get_url
+import asyncio
+from pyppeteer import launch
 
 URLS_NOT_HTTP_TAG_PATTERN = re.compile(
     r'(href|src){1}([\s]*=[\s]*[\'"]?)((?!http)[^\'">]+)([\'"]?)'
@@ -42,48 +44,41 @@ def expand_relative_urls(html: str) -> str:
 
     return html
 
-def get_pdf(html, *a, **b):
+async def get_pdf(html):
     pdf_file_path = f'/tmp/{frappe.generate_hash()}.pdf'
     html = scrub_urls(html)
 
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".html", delete=False) as html_file:
-        html_file.write(html)
-        html_file_path = html_file.name
+    browser = await launch()
+    page = await browser.newPage()
+    await page.setContent(html)
 
-    chrome_path_result = subprocess.run(['which', 'google-chrome'], capture_output=True, text=True)
-    chrome_path = chrome_path_result.stdout.strip()
+    # Set up PDF options
+    pdf_options = {
+        'path': pdf_file_path,
+        'format': 'A4',
+        'printBackground': True,
+        'displayHeaderFooter': True,
+        'headerTemplate': '<div style="font-size:10px;text-align:center;width:100%"><b>Header content here</b></div>',
+        'footerTemplate': '<div style="font-size:10px;text-align:center;width:100%"><b>Footer content here</b></div>',
+        'margin': {
+            'top': '30px',
+            'right': '30px',
+            'bottom': '70px',
+            'left': '30px'
+        }
+    }
 
-    if not chrome_path:
-        print("Error: Google Chrome not found.")
-        return None
+    # Generate PDF
+    await page.pdf(pdf_options)
+    await browser.close()
 
-    print(f"Using Google Chrome at: {chrome_path}")
-
-    chrome_command = [
-        chrome_path,
-        "--headless",
-        "--disable-gpu",
-        "--no-sandbox",
-        "--no-pdf-header-footer",
-        "--run-all-compositor-stages-before-draw",
-        f"--print-to-pdf={pdf_file_path}",
-        html_file_path
-    ]
-
-    result = subprocess.run(chrome_command, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        print(f"Error executing Chrome command: {result.stderr}")
-        return None
-
-    if not os.path.exists(pdf_file_path):
-        print(f"PDF file not generated at {pdf_file_path}")
-        return None
-
+    # Read and return the PDF content
     with open(pdf_file_path, 'rb') as f:
         content = f.read()
 
     os.remove(pdf_file_path)
-    os.remove(html_file_path)
 
     return content
+
+# Run the async function
+pdf_content = asyncio.get_event_loop().run_until_complete(get_pdf(html))
