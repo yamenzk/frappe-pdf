@@ -1,9 +1,10 @@
 import os
 import re
-import subprocess
+import asyncio
 import tempfile
 import frappe
 from frappe.utils import get_url
+from pyppeteer import launch
 
 URLS_NOT_HTTP_TAG_PATTERN = re.compile(
     r'(href|src){1}([\s]*=[\s]*[\'"]?)((?!http)[^\'">]+)([\'"]?)'
@@ -42,39 +43,19 @@ def expand_relative_urls(html: str) -> str:
 
     return html
 
+async def generate_pdf(html, pdf_file_path):
+    browser = await launch()
+    page = await browser.newPage()
+    await page.setContent(html)
+    await page.pdf({'path': pdf_file_path, 'format': 'A4'})
+    await browser.close()
+
 def get_pdf(html, *a, **b):
     pdf_file_path = f'/tmp/{frappe.generate_hash()}.pdf'
     html = scrub_urls(html)
 
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".html", delete=False) as html_file:
-        html_file.write(html)
-        html_file_path = html_file.name
-
-    chrome_path_result = subprocess.run(['which', 'google-chrome'], capture_output=True, text=True)
-    chrome_path = chrome_path_result.stdout.strip()
-
-    if not chrome_path:
-        print("Error: Google Chrome not found.")
-        return None
-
-    print(f"Using Google Chrome at: {chrome_path}")
-
-    chrome_command = [
-        chrome_path,
-        "--headless",
-        "--disable-gpu",
-        "--no-sandbox",
-        "--no-pdf-header-footer",
-        "--run-all-compositor-stages-before-draw",
-        f"--print-to-pdf={pdf_file_path}",
-        html_file_path
-    ]
-
-    result = subprocess.run(chrome_command, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        print(f"Error executing Chrome command: {result.stderr}")
-        return None
+    # Use Pyppeteer to generate PDF
+    asyncio.get_event_loop().run_until_complete(generate_pdf(html, pdf_file_path))
 
     if not os.path.exists(pdf_file_path):
         print(f"PDF file not generated at {pdf_file_path}")
@@ -84,6 +65,5 @@ def get_pdf(html, *a, **b):
         content = f.read()
 
     os.remove(pdf_file_path)
-    os.remove(html_file_path)
 
     return content
